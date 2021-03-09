@@ -1,0 +1,2 @@
+org/example/mirai/plugin/JavaPluginMain.java
+ org.example.mirai.plugin.JavaPluginMain
