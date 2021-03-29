@@ -20,7 +20,7 @@ import java.nio.charset.StandardCharsets
 
 object PluginMain : KotlinPlugin(
     JvmPluginDescription(
-        id = "me.Eritquearcus.TuLingBot",
+        id = "tech.Eritquearcus.TuLingBot",
         name = "TuLingBot",
         version = "1.0.0"
     )
@@ -43,6 +43,7 @@ object PluginMain : KotlinPlugin(
     override fun onEnable() {
         //配置文件目录 "${dataFolder.absolutePath}/"
         val file = File("${dataFolder.absolutePath}\\config.json")
+        logger.info("配置文件目录 \"${dataFolder.absolutePath}\"")
         if(!file.exists()){
             logger.error("配置文件不存在(路径:${dataFolder.absolutePath}\\config.json)，无法正常使用本插件")
             return
@@ -59,6 +60,7 @@ object PluginMain : KotlinPlugin(
             fkeyWord = configjson.getString("fkeyword")
         }catch (e: JSONException){
             logger.error("config.json参数不全,应该为{\"apikey\":\"这里填从图灵获取的api令牌\",\"gkeyword\":\"这里填群聊内以什么开始触发聊天，如空即为任何时候\",\"fkeyword\":\"这里填私聊内以什么开始触发聊天，如空即为任何时候\"}")
+            return
         }
         globalEventChannel().subscribeAlways<GroupMessageEvent>{
             //群消息
