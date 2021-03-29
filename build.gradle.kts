@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "tech.Eritque_arcus"
-version = "1.0.0"
+version = "1.1.0"
 
 repositories {
     maven{ url =uri("https://maven.aliyun.com/nexus/content/groups/public/")}

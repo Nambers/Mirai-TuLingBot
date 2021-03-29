@@ -22,7 +22,7 @@ object PluginMain : KotlinPlugin(
     JvmPluginDescription(
         id = "tech.Eritquearcus.TuLingBot",
         name = "TuLingBot",
-        version = "1.0.0"
+        version = "1.1.0"
     )
 ) {
     private var apikey = ""
