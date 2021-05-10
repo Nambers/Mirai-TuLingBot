@@ -1,6 +1,5 @@
-package org.example.mirai.plugin
+package tech.eritquearcus.tuling
 
-import kotlinx.serialization.json.JsonObject
 import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescription
 import net.mamoe.mirai.console.plugin.jvm.KotlinPlugin
 import net.mamoe.mirai.event.events.FriendMessageEvent
@@ -20,9 +19,9 @@ import java.nio.charset.StandardCharsets
 
 object PluginMain : KotlinPlugin(
     JvmPluginDescription(
-        id = "tech.Eritquearcus.TuLingBot",
+        id = "tech.eritquearcus.TuLingBot",
         name = "TuLingBot",
-        version = "1.1.0"
+        version = "1.2.0"
     )
 ) {
     private var apikey = ""
@@ -42,10 +41,10 @@ object PluginMain : KotlinPlugin(
     }
     override fun onEnable() {
         //配置文件目录 "${dataFolder.absolutePath}/"
-        val file = File("${dataFolder.absolutePath}\\config.json")
+        val file = File(dataFolder.absolutePath, "config.json")
         logger.info("配置文件目录 \"${dataFolder.absolutePath}\"")
         if(!file.exists()){
-            logger.error("配置文件不存在(路径:${dataFolder.absolutePath}\\config.json)，无法正常使用本插件")
+            logger.error("配置文件不存在(路径:${file.absolutePath})，无法正常使用本插件")
             return
         }
         val config = file.readText()

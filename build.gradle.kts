@@ -1,18 +1,18 @@
 plugins {
-    val kotlinVersion = "1.4.30"
+    val kotlinVersion = "1.4.31"
     kotlin("jvm") version kotlinVersion
     kotlin("plugin.serialization") version kotlinVersion
-    id("net.mamoe.mirai-console") version "2.5.0"
+    id("net.mamoe.mirai-console") version "2.6.2"
 }
 
 group = "tech.Eritque_arcus"
-version = "1.1.0"
+version = "1.2.0"
 
 repositories {
-    maven{ url =uri("https://maven.aliyun.com/nexus/content/groups/public/")}
-    jcenter()
     mavenCentral()
     mavenLocal()
+    maven{ url =uri("https://maven.aliyun.com/nexus/content/groups/public/")}
+    google()
 }
 dependencies{
     //在IDE内运行的mcl添加滑块模块，请参考https://github.com/project-mirai/mirai-login-solver-selenium把版本更新为最新
