@@ -21,7 +21,7 @@ object PluginMain : KotlinPlugin(
     JvmPluginDescription(
         id = "tech.eritquearcus.TuLingBot",
         name = "TuLingBot",
-        version = "1.2.0"
+        version = "1.3.0"
     )
 ) {
     private var apikey = ""
@@ -45,6 +45,12 @@ object PluginMain : KotlinPlugin(
         logger.info("配置文件目录 \"${dataFolder.absolutePath}\"")
         if(!file.exists()){
             logger.error("配置文件不存在(路径:${file.absolutePath})，无法正常使用本插件")
+            file.createNewFile()
+            file.writeText("{\n" +
+                "\"apikey\":\"api令牌\",\n" +
+                "\"gkeyword\":\"群聊触发开始字符\",\n" +
+                "\"fkeyword\":\"私聊触发开始字符\"\n" +
+                "}")
             return
         }
         val config = file.readText()
