@@ -27,7 +27,10 @@ object PluginMain : KotlinPlugin(
     private var apikey = ""
     private var gkeyWord = ""
     private var fkeyWord = ""
-    fun sendJson(out:String):String {
+    private var debug = false
+    fun sendJson(out:String, debug:Boolean):String {
+        if(debug)
+            logger.info("向图灵发起请求:\n $out")
         val url = URL("http://openapi.tuling123.com/openapi/api/v2")
         val con = url.openConnection()
         val http = con as HttpURLConnection
@@ -37,7 +40,10 @@ object PluginMain : KotlinPlugin(
         http.doOutput = true
         http.connect()
         http.outputStream.use { os -> os.write(out.encodeToByteArray()) }
-        return InputStreamReader(http.inputStream, StandardCharsets.UTF_8).readText()
+        val re = InputStreamReader(http.inputStream, StandardCharsets.UTF_8).readText()
+        if(debug)
+            logger.info("图灵返回:\n $re")
+        return re
     }
     override fun onEnable() {
         //配置文件目录 "${dataFolder.absolutePath}/"
@@ -49,7 +55,8 @@ object PluginMain : KotlinPlugin(
             file.writeText("{\n" +
                 "\"apikey\":\"api令牌\",\n" +
                 "\"gkeyword\":\"群聊触发开始字符\",\n" +
-                "\"fkeyword\":\"私聊触发开始字符\"\n" +
+                "\"fkeyword\":\"私聊触发开始字符\",\n" +
+                "\"debug\":\"[可选]debug模式(值为ture/false)\"\n" +
                 "}")
             return
         }
@@ -63,17 +70,20 @@ object PluginMain : KotlinPlugin(
          */
             gkeyWord = configjson.getString("gkeyword")
             fkeyWord = configjson.getString("fkeyword")
+            if(configjson.has("debug"))
+                debug = configjson.getBoolean("debug")
         }catch (e: JSONException){
             logger.error("config.json参数不全,应该为{\"apikey\":\"这里填从图灵获取的api令牌\",\"gkeyword\":\"这里填群聊内以什么开始触发聊天，如空即为任何时候\",\"fkeyword\":\"这里填私聊内以什么开始触发聊天，如空即为任何时候\"}")
             return
         }
-        globalEventChannel().subscribeAlways<GroupMessageEvent>{
+        globalEventChannel().subscribeAlways<GroupMessageEvent> {
             //群消息
-            if(gkeyWord != ""&&!this.message.contentToString().startsWith(gkeyWord))return@subscribeAlways
+            if (gkeyWord != "" && !this.message.contentToString().startsWith(gkeyWord)) return@subscribeAlways
             this.message.forEach {
-                if(it is PlainText){
+                var text = "null"
+                if (it is PlainText) {
                     //纯文本
-                    val text = """
+                    text = """
                     {
             	"reqType":0,
                 "perception": {
@@ -89,13 +99,9 @@ object PluginMain : KotlinPlugin(
                 }
             }
                 """.trimIndent()
-                    val j = sendJson(text)
-                    val re = JSONObject(j).getJSONArray("results")[0] as JSONObject
-                    this.group.sendMessage(re.getJSONObject("values").getString("text"))
-                }
-                else if(it is Image){
+                } else if (it is Image) {
                     //纯文本
-                    val text = """
+                    text = """
                     {
             	"reqType":0,
                 "perception": {
@@ -111,18 +117,19 @@ object PluginMain : KotlinPlugin(
                 }
             }
                 """.trimIndent()
-                    val j = sendJson(text)
-                    val re = JSONObject(j).getJSONArray("results")[0] as JSONObject
-                    this.group.sendMessage(re.getJSONObject("values").getString("text"))
                 }
+                if(text == "null") return@subscribeAlways
+                val j = sendJson(text, debug)
+                val re = JSONObject(j).getJSONArray("results")[0] as JSONObject
+                this.group.sendMessage(re.getJSONObject("values").getString("text"))
             }
         }
         globalEventChannel().subscribeAlways<FriendMessageEvent> {
             if(fkeyWord != ""&&!this.message.contentToString().startsWith(fkeyWord))return@subscribeAlways
             this.message.forEach {
+                var text = ""
                 if(it is PlainText){
-                    //纯文本
-                    val text = """
+                    text = """
                     {
             	"reqType":0,
                 "perception": {
@@ -137,13 +144,10 @@ object PluginMain : KotlinPlugin(
                 }
             }
                 """.trimIndent()
-                    val j = sendJson(text)
-                    val re = JSONObject(j).getJSONArray("results")[0] as JSONObject
-                    this.friend.sendMessage(re.getJSONObject("values").getString("text"))
                 }
                 else if(it is Image){
                     //纯文本
-                    val text = """
+                    text = """
                     {
             	"reqType":0,
                 "perception": {
@@ -158,10 +162,10 @@ object PluginMain : KotlinPlugin(
                 }
             }
                 """.trimIndent()
-                    val j = sendJson(text)
-                    val re = JSONObject(j).getJSONArray("results")[0] as JSONObject
-                    this.sender.sendMessage(re.getJSONObject("values").getString("text"))
                 }
+                val j = sendJson(text, debug)
+                val re = JSONObject(j).getJSONArray("results")[0] as JSONObject
+                this.sender.sendMessage(re.getJSONObject("values").getString("text"))
             }
         }
     }
