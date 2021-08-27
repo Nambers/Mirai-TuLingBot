@@ -1,14 +1,16 @@
 package tech.eritquearcus.tuling
 
+import com.google.gson.Gson
+import net.mamoe.mirai.Bot
 import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescription
 import net.mamoe.mirai.console.plugin.jvm.KotlinPlugin
 import net.mamoe.mirai.event.events.FriendMessageEvent
 import net.mamoe.mirai.event.events.GroupMessageEvent
 import net.mamoe.mirai.event.globalEventChannel
+import net.mamoe.mirai.message.data.At
 import net.mamoe.mirai.message.data.Image
 import net.mamoe.mirai.message.data.Image.Key.queryUrl
 import net.mamoe.mirai.message.data.PlainText
-import org.json.JSONException
 import org.json.JSONObject
 import java.io.File
 import java.io.InputStreamReader
@@ -24,13 +26,7 @@ object PluginMain : KotlinPlugin(
         version = "1.3.0"
     )
 ) {
-    private var apikey = ""
-    private var gkeyWord = ""
-    private var fkeyWord = ""
-    private var debug = false
-    fun sendJson(out:String, debug:Boolean):String {
-        if(debug)
-            logger.info("向图灵发起请求:\n $out")
+    private fun sendJson(out: String, debug: Boolean?): String {
         val url = URL("http://openapi.tuling123.com/openapi/api/v2")
         val con = url.openConnection()
         val http = con as HttpURLConnection
@@ -41,44 +37,43 @@ object PluginMain : KotlinPlugin(
         http.connect()
         http.outputStream.use { os -> os.write(out.encodeToByteArray()) }
         val re = InputStreamReader(http.inputStream, StandardCharsets.UTF_8).readText()
-        if(debug)
+        if (debug == true)
             logger.info("图灵返回:\n $re")
         return re
     }
+
+    private fun String.dontContain(l: List<String>, bot: Bot): Boolean {
+        l.forEach {
+            if (this.startsWith(if (it == "@bot") At(bot).contentToString() else it))
+                return false
+        }
+        return true
+    }
+
     override fun onEnable() {
         //配置文件目录 "${dataFolder.absolutePath}/"
+        val configuration: config
         val file = File(dataFolder.absolutePath, "config.json")
         logger.info("配置文件目录 \"${dataFolder.absolutePath}\"")
-        if(!file.exists()){
+        val gson = Gson()
+        if (!file.exists()) {
             logger.error("配置文件不存在(路径:${file.absolutePath})，无法正常使用本插件")
             file.createNewFile()
-            file.writeText("{\n" +
-                "\"apikey\":\"api令牌\",\n" +
-                "\"gkeyword\":\"群聊触发开始字符\",\n" +
-                "\"fkeyword\":\"私聊触发开始字符\",\n" +
-                "\"debug\":\"[可选]debug模式(值为ture/false)\"\n" +
-                "}")
+            file.writeText(gson.toJson(config("", listOf(""), listOf(""), null)))
             return
         }
-        val config = file.readText()
         try {
-            val configjson = JSONObject(config)
-            //api令牌，需要去图灵处注册获得
-            apikey = configjson.getString("apikey")
-            /*
-        触发关键词，如果为空则包含全部情况
-         */
-            gkeyWord = configjson.getString("gkeyword")
-            fkeyWord = configjson.getString("fkeyword")
-            if(configjson.has("debug"))
-                debug = configjson.getBoolean("debug")
-        }catch (e: JSONException){
+            configuration = gson.fromJson(file.readText(), config::class.java)
+        } catch (e: com.google.gson.JsonSyntaxException) {
+            logger.error(e)
             logger.error("config.json参数不全,应该为{\"apikey\":\"这里填从图灵获取的api令牌\",\"gkeyword\":\"这里填群聊内以什么开始触发聊天，如空即为任何时候\",\"fkeyword\":\"这里填私聊内以什么开始触发聊天，如空即为任何时候\"}")
             return
         }
         globalEventChannel().subscribeAlways<GroupMessageEvent> {
             //群消息
-            if (gkeyWord != "" && !this.message.contentToString().startsWith(gkeyWord)) return@subscribeAlways
+            if (configuration.gkeyWord.isNotEmpty() && this.message.contentToString()
+                    .dontContain(configuration.gkeyWord, this.bot)
+            ) return@subscribeAlways
             this.message.forEach {
                 var text = "null"
                 if (it is PlainText) {
@@ -92,7 +87,7 @@ object PluginMain : KotlinPlugin(
                     }
                 },
                 "userInfo": {
-                    "apiKey": "$apikey",
+                    "apiKey": "${configuration.apikey}",
                     "userId": "${this.sender.id}",
                     "groupId": "${this.group.id}",
                     "userIdName": "${this.sender.nick}"
@@ -110,7 +105,7 @@ object PluginMain : KotlinPlugin(
                     }
                 },
                 "userInfo": {
-                    "apiKey": "$apikey",
+                    "apiKey": "${configuration.apikey}",
                     "userId": "${this.sender.id}",
                     "groupId": "${this.group.id}",
                     "userIdName": "${this.sender.nick}"
@@ -118,14 +113,17 @@ object PluginMain : KotlinPlugin(
             }
                 """.trimIndent()
                 }
-                if(text == "null") return@subscribeAlways
-                val j = sendJson(text, debug)
+                val j = sendJson(text, configuration.debug)
+                if (configuration.debug == true)
+                    logger.info(j)
                 val re = JSONObject(j).getJSONArray("results")[0] as JSONObject
                 this.group.sendMessage(re.getJSONObject("values").getString("text"))
             }
         }
         globalEventChannel().subscribeAlways<FriendMessageEvent> {
-            if(fkeyWord != ""&&!this.message.contentToString().startsWith(fkeyWord))return@subscribeAlways
+            if (configuration.fkeyWord.isNotEmpty() && this.message.contentToString()
+                    .dontContain(configuration.fkeyWord, this.bot)
+            ) return@subscribeAlways
             this.message.forEach {
                 var text = ""
                 if(it is PlainText){
@@ -138,7 +136,7 @@ object PluginMain : KotlinPlugin(
                     }
                 },
                 "userInfo": {
-                    "apiKey": "$apikey",
+                    "apiKey": "${configuration.apikey}",
                     "userId": "${this.sender.id}",
                     "userIdName": "${this.sender.nick}"
                 }
@@ -156,14 +154,16 @@ object PluginMain : KotlinPlugin(
                     }
                 },
                 "userInfo": {
-                    "apiKey": "$apikey",
+                    "apiKey": "${configuration.apikey}",
                     "userId": "${this.sender.id}",
                     "userIdName": "${this.sender.nick}"
                 }
             }
                 """.trimIndent()
                 }
-                val j = sendJson(text, debug)
+                val j = sendJson(text, configuration.debug)
+                if (configuration.debug == true)
+                    logger.info(j)
                 val re = JSONObject(j).getJSONArray("results")[0] as JSONObject
                 this.sender.sendMessage(re.getJSONObject("values").getString("text"))
             }
