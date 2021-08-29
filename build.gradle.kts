@@ -10,8 +10,8 @@ version = "1.4.0"
 
 repositories {
     mavenLocal()
-    maven { url = uri("https://maven.aliyun.com/nexus/content/groups/public/") }
     mavenCentral()
+    maven { url = uri("https://maven.aliyun.com/nexus/content/groups/public/") }
     google()
 }
 dependencies{

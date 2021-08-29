@@ -7,10 +7,8 @@ import net.mamoe.mirai.console.plugin.jvm.KotlinPlugin
 import net.mamoe.mirai.event.events.FriendMessageEvent
 import net.mamoe.mirai.event.events.GroupMessageEvent
 import net.mamoe.mirai.event.globalEventChannel
-import net.mamoe.mirai.message.data.At
-import net.mamoe.mirai.message.data.Image
+import net.mamoe.mirai.message.data.*
 import net.mamoe.mirai.message.data.Image.Key.queryUrl
-import net.mamoe.mirai.message.data.PlainText
 import org.json.JSONObject
 import java.io.File
 import java.io.InputStreamReader
@@ -23,31 +21,41 @@ object PluginMain : KotlinPlugin(
     JvmPluginDescription(
         id = "tech.eritquearcus.TuLingBot",
         name = "TuLingBot",
-        version = "1.3.0"
+        version = "1.4.0"
     )
 ) {
     private fun sendJson(out: String, debug: Boolean?): String {
         val url = URL("http://openapi.tuling123.com/openapi/api/v2")
         val con = url.openConnection()
         val http = con as HttpURLConnection
-        http.requestMethod = "POST" // PUT is another valid option
+        http.requestMethod = "POST"
         http.setRequestProperty("Content-Type", "application/json; utf-8")
         http.setRequestProperty("Accept", "application/json")
         http.doOutput = true
         http.connect()
+        if (debug == true)
+            logger.info("图灵发送:\n$out")
         http.outputStream.use { os -> os.write(out.encodeToByteArray()) }
         val re = InputStreamReader(http.inputStream, StandardCharsets.UTF_8).readText()
         if (debug == true)
-            logger.info("图灵返回:\n $re")
+            logger.info("图灵返回:\n$re")
         return re
     }
 
-    private fun String.dontContain(l: List<String>, bot: Bot): Boolean {
+    private fun MessageChain.containKey(l: List<String>, bot: Bot): List<SingleMessage> {
         l.forEach {
-            if (this.startsWith(if (it == "@bot") At(bot).contentToString() else it))
-                return false
+            if (it == "@bot" && this.contains(At(bot)))
+                return this.toMutableList().apply {
+                    this.remove(At(bot))
+                    this.removeAt(0)
+                }
+            else if (this.contentToString().startsWith(it))
+                return this.toMutableList().apply {
+                    this.removeAt(0)
+                    this[0] = PlainText(this[0].contentToString().replace(it, ""))
+                }
         }
-        return true
+        return emptyList()
     }
 
     override fun onEnable() {
@@ -69,16 +77,27 @@ object PluginMain : KotlinPlugin(
             logger.error("config.json参数不全,应该为{\"apikey\":\"这里填从图灵获取的api令牌\",\"gkeyword\":\"这里填群聊内以什么开始触发聊天，如空即为任何时候\",\"fkeyword\":\"这里填私聊内以什么开始触发聊天，如空即为任何时候\"}")
             return
         }
+        logger.info("群触发关键词为:${configuration.gkeyWord}")
+        logger.info("私聊触发关键词为:${configuration.fkeyWord}")
         globalEventChannel().subscribeAlways<GroupMessageEvent> {
             //群消息
-            if (configuration.gkeyWord.isNotEmpty() && this.message.contentToString()
-                    .dontContain(configuration.gkeyWord, this.bot)
-            ) return@subscribeAlways
-            this.message.forEach {
-                var text = "null"
-                if (it is PlainText) {
-                    //纯文本
-                    text = """
+            var reS = ""
+            (if (configuration.gkeyWord.isEmpty())
+                this.message.toList()
+            else
+                this.message.containKey(configuration.gkeyWord, this.bot).let {
+                    if (it.isEmpty())
+                        return@subscribeAlways
+                    else
+                        return@let it
+                })
+                .forEach {
+                    if (it.content == "")
+                        return@forEach
+                    val text = when {
+                        (it is PlainText) -> {
+                            //纯文本
+                            """
                     {
             	"reqType":0,
                 "perception": {
@@ -94,45 +113,77 @@ object PluginMain : KotlinPlugin(
                 }
             }
                 """.trimIndent()
-                } else if (it is Image) {
-                    //纯文本
-                    text = """
-                    {
-            	"reqType":0,
-                "perception": {
-                    "inputImage": {
-                        "url": "${it.queryUrl()}"
+                        }
+                        (it is Image) -> {
+                            """
+                            {
+                        "reqType":1,
+                        "perception": {
+                            "inputImage": {
+                                "url": "${it.queryUrl()}"
+                            }
+                        },
+                        "userInfo": {
+                            "apiKey": "${configuration.apikey}",
+                            "userId": "${this.sender.id}",
+                            "groupId": "${this.group.id}",
+                            "userIdName": "${this.sender.nick}"
+                        }
                     }
-                },
-                "userInfo": {
-                    "apiKey": "${configuration.apikey}",
-                    "userId": "${this.sender.id}",
-                    "groupId": "${this.group.id}",
-                    "userIdName": "${this.sender.nick}"
-                }
-            }
                 """.trimIndent()
+                        }
+                        (it is OnlineAudio) -> {
+                            """
+                            {
+                        "reqType":2,
+                        "perception": {
+                            "inputMedia": {
+                                "url": "${it.urlForDownload}"
+                            }
+                        },
+                        "userInfo": {
+                            "apiKey": "${configuration.apikey}",
+                            "userId": "${this.sender.id}",
+                            "groupId": "${this.group.id}",
+                            "userIdName": "${this.sender.nick}"
+                        }
+                    }
+                """.trimIndent()
+                        }
+                        else -> {
+                            return@forEach
+                        }
+                    }
+                    val j = sendJson(text, configuration.debug)
+                    if (configuration.debug == true)
+                        logger.info(j)
+                    reS += (JSONObject(j).getJSONArray("results")[0] as JSONObject).getJSONObject("values")
+                        .getString("text")
                 }
-                val j = sendJson(text, configuration.debug)
-                if (configuration.debug == true)
-                    logger.info(j)
-                val re = JSONObject(j).getJSONArray("results")[0] as JSONObject
-                this.group.sendMessage(re.getJSONObject("values").getString("text"))
-            }
+            this.group.sendMessage(At(this.sender) + reS)
         }
         globalEventChannel().subscribeAlways<FriendMessageEvent> {
-            if (configuration.fkeyWord.isNotEmpty() && this.message.contentToString()
-                    .dontContain(configuration.fkeyWord, this.bot)
-            ) return@subscribeAlways
-            this.message.forEach {
-                var text = ""
-                if(it is PlainText){
-                    text = """
+            var reS = ""
+            (if (configuration.fkeyWord.isEmpty())
+                this.message.toList()
+            else
+                this.message.containKey(configuration.fkeyWord, this.bot).let {
+                    if (it.isEmpty())
+                        return@subscribeAlways
+                    else
+                        return@let it
+                })
+                .forEach {
+                    if (it.content == "")
+                        return@forEach
+                    val text = when {
+                        (it is PlainText) -> {
+                            """
                     {
             	"reqType":0,
                 "perception": {
                     "inputText": {
-                        "text": "${it.content}"
+                        "text": "${it.content.replace("\n", "")}"
                     }
                 },
                 "userInfo": {
@@ -142,31 +193,53 @@ object PluginMain : KotlinPlugin(
                 }
             }
                 """.trimIndent()
-                }
-                else if(it is Image){
-                    //纯文本
-                    text = """
-                    {
-            	"reqType":0,
-                "perception": {
-                    "inputImage": {
-                        "url": "${it.queryUrl()}"
+                        }
+                        (it is Image) -> {
+                            //纯文本
+                            """
+                        {
+                        "reqType":1,
+                        "perception": {
+                            "inputImage": {
+                                "url": "${it.queryUrl()}"
+                            }
+                        },
+                        "userInfo": {
+                            "apiKey": "${configuration.apikey}",
+                            "userId": "${this.sender.id}",
+                            "userIdName": "${this.sender.nick}"
+                        }
                     }
-                },
-                "userInfo": {
-                    "apiKey": "${configuration.apikey}",
-                    "userId": "${this.sender.id}",
-                    "userIdName": "${this.sender.nick}"
-                }
-            }
+                        """.trimIndent()
+                        }
+                        (it is OnlineAudio) -> {
+                            """
+                            {
+                        "reqType":2,
+                        "perception": {
+                            "inputMedia": {
+                                "url": "${it.urlForDownload}"
+                            }
+                        },
+                        "userInfo": {
+                            "apiKey": "${configuration.apikey}",
+                            "userId": "${this.sender.id}",
+                            "userIdName": "${this.sender.nick}"
+                        }
+                    }
                 """.trimIndent()
+                        }
+                        else -> {
+                            return@forEach
+                        }
+                    }
+                    val j = sendJson(text, configuration.debug)
+                    if (configuration.debug == true)
+                        logger.info(j)
+                    reS += (JSONObject(j).getJSONArray("results")[0] as JSONObject).getJSONObject("values")
+                        .getString("text") + "\n"
                 }
-                val j = sendJson(text, configuration.debug)
-                if (configuration.debug == true)
-                    logger.info(j)
-                val re = JSONObject(j).getJSONArray("results")[0] as JSONObject
-                this.sender.sendMessage(re.getJSONObject("values").getString("text"))
-            }
+            this.sender.sendMessage(reS.trim())
         }
     }
 }

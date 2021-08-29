@@ -28,3 +28,6 @@ run/
 test/
 .gradle/
 build/
+bots/
+config/
+data/
