@@ -1,3 +1,20 @@
+/*
+ * Copyright (c) 2020 - 2021. Eritque arcus and contributors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or any later version(in your opinion).
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
 package tech.eritquearcus.tuling
 
 import com.google.gson.Gson
@@ -21,7 +38,7 @@ object PluginMain : KotlinPlugin(
     JvmPluginDescription(
         id = "tech.eritquearcus.TuLingBot",
         name = "TuLingBot",
-        version = "1.4.0"
+        version = "1.5.0"
     )
 ) {
     private fun TulingRequest.Perception.toRequest(uinfo: TulingRequest.UserInfo): TulingRequest =
@@ -38,13 +55,10 @@ object PluginMain : KotlinPlugin(
     private suspend fun SingleMessage.toRequest(uinfo: TulingRequest.UserInfo): TulingRequest =
         when (this) {
             is PlainText -> TulingRequest.Perception(inputText = TulingRequest.Perception.InputText(this.content))
-                .toRequest(uinfo)
             is Image -> TulingRequest.Perception(inputImage = TulingRequest.Perception.InputImage(this.queryUrl()))
-                .toRequest(uinfo)
             is OnlineAudio -> TulingRequest.Perception(inputMedia = TulingRequest.Perception.InputMedia(this.urlForDownload))
-                .toRequest(uinfo)
             else -> throw IllegalArgumentException("")
-        }
+        }.toRequest(uinfo)
 
     private fun sendJson(out: String, debug: Boolean?): String {
         val url = URL("http://openapi.tuling123.com/openapi/api/v2")
@@ -120,7 +134,7 @@ object PluginMain : KotlinPlugin(
                         return@let it
                 })
                 .forEach {
-                    if (it.content == "")
+                    if (it.content.isBlank() || it.content.isEmpty())
                         return@forEach
                     val text = gson.toJson(it.toRequest(uinfo))
                     val j = sendJson(text, configuration.debug)
@@ -149,7 +163,7 @@ object PluginMain : KotlinPlugin(
                         return@let it
                 })
                 .forEach {
-                    if (it.content == "")
+                    if (it.content.isBlank() || it.content.isEmpty())
                         return@forEach
                     val text = gson.toJson(it.toRequest(uinfo))
                     val j = sendJson(text, configuration.debug)
