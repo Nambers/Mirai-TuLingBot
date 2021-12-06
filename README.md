@@ -1,4 +1,6 @@
 # Mirai-TuLingBot
+> Build Test: [![Build test](https://github.com/Nambers/Mirai-TuLingBot/actions/workflows/gradle.yml/badge.svg)](https://github.com/Nambers/Mirai-TuLingBot/actions/workflows/gradle.yml)
+
 Mirai接入图灵机器人
 
 图灵虽然感觉越做越水了，不过还可能免费用
