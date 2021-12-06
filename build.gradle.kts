@@ -1,8 +1,8 @@
 plugins {
-    val kotlinVersion = "1.5.10"
+    val kotlinVersion = "1.5.30"
     kotlin("jvm") version kotlinVersion
     kotlin("plugin.serialization") version kotlinVersion
-    id("net.mamoe.mirai-console") version "2.7.0"
+    id("net.mamoe.mirai-console") version "2.8.2"
 }
 
 group = "tech.Eritque_arcus"
@@ -17,6 +17,6 @@ repositories {
 dependencies{
     // https://mvnrepository.com/artifact/org.json/json
     implementation("org.json:json:20210307")
-    implementation("com.google.code.gson:gson:2.8.8")
+    implementation("com.google.code.gson:gson:2.8.9")
 
 }

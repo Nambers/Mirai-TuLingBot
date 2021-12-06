@@ -24,6 +24,28 @@ object PluginMain : KotlinPlugin(
         version = "1.4.0"
     )
 ) {
+    private fun TulingRequest.Perception.toRequest(uinfo: TulingRequest.UserInfo): TulingRequest =
+        TulingRequest(
+            this,
+            when {
+                this.inputText != null -> 0
+                this.inputImage != null -> 1
+                this.inputMedia != null -> 2
+                else -> throw IllegalArgumentException("")
+            }, uinfo
+        )
+
+    private suspend fun SingleMessage.toRequest(uinfo: TulingRequest.UserInfo): TulingRequest =
+        when (this) {
+            is PlainText -> TulingRequest.Perception(inputText = TulingRequest.Perception.InputText(this.content))
+                .toRequest(uinfo)
+            is Image -> TulingRequest.Perception(inputImage = TulingRequest.Perception.InputImage(this.queryUrl()))
+                .toRequest(uinfo)
+            is OnlineAudio -> TulingRequest.Perception(inputMedia = TulingRequest.Perception.InputMedia(this.urlForDownload))
+                .toRequest(uinfo)
+            else -> throw IllegalArgumentException("")
+        }
+
     private fun sendJson(out: String, debug: Boolean?): String {
         val url = URL("http://openapi.tuling123.com/openapi/api/v2")
         val con = url.openConnection()
@@ -60,18 +82,18 @@ object PluginMain : KotlinPlugin(
 
     override fun onEnable() {
         //配置文件目录 "${dataFolder.absolutePath}/"
-        val configuration: config
+        val configuration: Config
         val file = File(dataFolder.absolutePath, "config.json")
         logger.info("配置文件目录 \"${dataFolder.absolutePath}\"")
         val gson = Gson()
         if (!file.exists()) {
             logger.error("配置文件不存在(路径:${file.absolutePath})，无法正常使用本插件")
             file.createNewFile()
-            file.writeText(gson.toJson(config("", listOf(""), listOf(""), null)))
+            file.writeText(gson.toJson(Config("", listOf(""), listOf(""), null)))
             return
         }
         try {
-            configuration = gson.fromJson(file.readText(), config::class.java)
+            configuration = gson.fromJson(file.readText(), Config::class.java)
         } catch (e: com.google.gson.JsonSyntaxException) {
             logger.error(e)
             logger.error("config.json参数不全,应该为{\"apikey\":\"这里填从图灵获取的api令牌\",\"gkeyword\":\"这里填群聊内以什么开始触发聊天，如空即为任何时候\",\"fkeyword\":\"这里填私聊内以什么开始触发聊天，如空即为任何时候\"}")
@@ -81,6 +103,12 @@ object PluginMain : KotlinPlugin(
         logger.info("私聊触发关键词为:${configuration.fkeyWord}")
         globalEventChannel().subscribeAlways<GroupMessageEvent> {
             //群消息
+            val uinfo = TulingRequest.UserInfo(
+                configuration.apikey,
+                this.group.id.toString(),
+                this.sender.id.toString(),
+                this.senderName
+            )
             var reS = ""
             (if (configuration.gkeyWord.isEmpty())
                 this.message.toList()
@@ -94,66 +122,7 @@ object PluginMain : KotlinPlugin(
                 .forEach {
                     if (it.content == "")
                         return@forEach
-                    val text = when {
-                        (it is PlainText) -> {
-                            //纯文本
-                            """
-                    {
-            	"reqType":0,
-                "perception": {
-                    "inputText": {
-                        "text": "${it.content}"
-                    }
-                },
-                "userInfo": {
-                    "apiKey": "${configuration.apikey}",
-                    "userId": "${this.sender.id}",
-                    "groupId": "${this.group.id}",
-                    "userIdName": "${this.sender.nick}"
-                }
-            }
-                """.trimIndent()
-                        }
-                        (it is Image) -> {
-                            """
-                            {
-                        "reqType":1,
-                        "perception": {
-                            "inputImage": {
-                                "url": "${it.queryUrl()}"
-                            }
-                        },
-                        "userInfo": {
-                            "apiKey": "${configuration.apikey}",
-                            "userId": "${this.sender.id}",
-                            "groupId": "${this.group.id}",
-                            "userIdName": "${this.sender.nick}"
-                        }
-                    }
-                """.trimIndent()
-                        }
-                        (it is OnlineAudio) -> {
-                            """
-                            {
-                        "reqType":2,
-                        "perception": {
-                            "inputMedia": {
-                                "url": "${it.urlForDownload}"
-                            }
-                        },
-                        "userInfo": {
-                            "apiKey": "${configuration.apikey}",
-                            "userId": "${this.sender.id}",
-                            "groupId": "${this.group.id}",
-                            "userIdName": "${this.sender.nick}"
-                        }
-                    }
-                """.trimIndent()
-                        }
-                        else -> {
-                            return@forEach
-                        }
-                    }
+                    val text = gson.toJson(it.toRequest(uinfo))
                     val j = sendJson(text, configuration.debug)
                     if (configuration.debug == true)
                         logger.info(j)
@@ -163,6 +132,12 @@ object PluginMain : KotlinPlugin(
             this.group.sendMessage(At(this.sender) + reS)
         }
         globalEventChannel().subscribeAlways<FriendMessageEvent> {
+            val uinfo = TulingRequest.UserInfo(
+                configuration.apikey,
+                null,
+                this.sender.id.toString(),
+                this.sender.nick
+            )
             var reS = ""
             (if (configuration.fkeyWord.isEmpty())
                 this.message.toList()
@@ -176,63 +151,7 @@ object PluginMain : KotlinPlugin(
                 .forEach {
                     if (it.content == "")
                         return@forEach
-                    val text = when {
-                        (it is PlainText) -> {
-                            """
-                    {
-            	"reqType":0,
-                "perception": {
-                    "inputText": {
-                        "text": "${it.content.replace("\n", "")}"
-                    }
-                },
-                "userInfo": {
-                    "apiKey": "${configuration.apikey}",
-                    "userId": "${this.sender.id}",
-                    "userIdName": "${this.sender.nick}"
-                }
-            }
-                """.trimIndent()
-                        }
-                        (it is Image) -> {
-                            //纯文本
-                            """
-                        {
-                        "reqType":1,
-                        "perception": {
-                            "inputImage": {
-                                "url": "${it.queryUrl()}"
-                            }
-                        },
-                        "userInfo": {
-                            "apiKey": "${configuration.apikey}",
-                            "userId": "${this.sender.id}",
-                            "userIdName": "${this.sender.nick}"
-                        }
-                    }
-                        """.trimIndent()
-                        }
-                        (it is OnlineAudio) -> {
-                            """
-                            {
-                        "reqType":2,
-                        "perception": {
-                            "inputMedia": {
-                                "url": "${it.urlForDownload}"
-                            }
-                        },
-                        "userInfo": {
-                            "apiKey": "${configuration.apikey}",
-                            "userId": "${this.sender.id}",
-                            "userIdName": "${this.sender.nick}"
-                        }
-                    }
-                """.trimIndent()
-                        }
-                        else -> {
-                            return@forEach
-                        }
-                    }
+                    val text = gson.toJson(it.toRequest(uinfo))
                     val j = sendJson(text, configuration.debug)
                     if (configuration.debug == true)
                         logger.info(j)
