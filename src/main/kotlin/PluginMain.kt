@@ -27,7 +27,11 @@ import net.mamoe.mirai.event.globalEventChannel
 import net.mamoe.mirai.message.data.*
 import net.mamoe.mirai.message.data.Image.Key.queryUrl
 import org.json.JSONObject
-import java.io.File
+import tech.eritquearcus.tuling.TuringConfig.apikey
+import tech.eritquearcus.tuling.TuringConfig.debug
+import tech.eritquearcus.tuling.TuringConfig.friendKeyword
+import tech.eritquearcus.tuling.TuringConfig.groupKeyword
+import tech.eritquearcus.tuling.TuringConfig.overLimitReply
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
@@ -95,39 +99,22 @@ object PluginMain : KotlinPlugin(
     }
 
     override fun onEnable() {
-        //配置文件目录 "${dataFolder.absolutePath}/"
-        val configuration: Config
-        val file = File(dataFolder.absolutePath, "config.json")
-        logger.info("配置文件目录 \"${dataFolder.absolutePath}\"")
-        val gson = Gson()
-        if (!file.exists()) {
-            logger.error("配置文件不存在(路径:${file.absolutePath})，无法正常使用本插件")
-            file.createNewFile()
-            file.writeText(gson.toJson(Config("", listOf(""), listOf(""), null)))
-            return
-        }
-        try {
-            configuration = gson.fromJson(file.readText(), Config::class.java)
-        } catch (e: com.google.gson.JsonSyntaxException) {
-            logger.error(e)
-            logger.error("config.json参数不全,应该为{\"apikey\":\"这里填从图灵获取的api令牌\",\"gkeyword\":\"这里填群聊内以什么开始触发聊天，如空即为任何时候\",\"fkeyword\":\"这里填私聊内以什么开始触发聊天，如空即为任何时候\"}")
-            return
-        }
-        logger.info("群触发关键词为:${configuration.gkeyWord}")
-        logger.info("私聊触发关键词为:${configuration.fkeyWord}")
-        globalEventChannel().subscribeAlways<GroupMessageEvent> {
+        TuringConfig.reload()
+        if(apikey.isEmpty())
+            logger.warning("未填写apikey，请到${configFolder.absolutePath}/config.yml文件下填写")
+        globalEventChannel().filter{ apikey.isNotEmpty() }.subscribeAlways<GroupMessageEvent> {
             //群消息
             val uinfo = TulingRequest.UserInfo(
-                configuration.apikey,
+                apikey,
                 this.group.id.toString(),
                 this.sender.id.toString(),
                 this.senderName
             )
             var reS = ""
-            (if (configuration.gkeyWord.isEmpty())
+            (if (groupKeyword.isEmpty())
                 this.message.toList()
             else
-                this.message.containKey(configuration.gkeyWord, this.bot).let {
+                this.message.containKey(groupKeyword, this.bot).let {
                     if (it.isEmpty())
                         return@subscribeAlways
                     else
@@ -136,27 +123,30 @@ object PluginMain : KotlinPlugin(
                 .forEach {
                     if (it.content.isBlank() || it.content.isEmpty())
                         return@forEach
-                    val text = gson.toJson(it.toRequest(uinfo))
-                    val j = sendJson(text, configuration.debug)
-                    if (configuration.debug == true)
-                        logger.info(j)
-                    reS += (JSONObject(j).getJSONArray("results")[0] as JSONObject).getJSONObject("values")
-                        .getString("text")
+                    val text = Gson().toJson(it.toRequest(uinfo))
+                    val j = sendJson(text, debug)
+                    val code = JSONObject(j).getJSONObject("intent").getInt("code")
+                    reS += if(overLimitReply.isNotEmpty() && code == 4003)
+                        overLimitReply.random()
+                    else
+                        (JSONObject(j).getJSONArray("results")[0] as JSONObject).getJSONObject("values")
+                            .getString("text")
                 }
             this.group.sendMessage(At(this.sender) + reS)
         }
-        globalEventChannel().subscribeAlways<FriendMessageEvent> {
+
+        globalEventChannel().filter{ apikey.isNotEmpty() }.subscribeAlways<FriendMessageEvent> {
             val uinfo = TulingRequest.UserInfo(
-                configuration.apikey,
+                apikey,
                 null,
                 this.sender.id.toString(),
                 this.sender.nick
             )
             var reS = ""
-            (if (configuration.fkeyWord.isEmpty())
+            (if (friendKeyword.isEmpty())
                 this.message.toList()
             else
-                this.message.containKey(configuration.fkeyWord, this.bot).let {
+                this.message.containKey(friendKeyword, this.bot).let {
                     if (it.isEmpty())
                         return@subscribeAlways
                     else
@@ -165,12 +155,15 @@ object PluginMain : KotlinPlugin(
                 .forEach {
                     if (it.content.isBlank() || it.content.isEmpty())
                         return@forEach
-                    val text = gson.toJson(it.toRequest(uinfo))
-                    val j = sendJson(text, configuration.debug)
-                    if (configuration.debug == true)
-                        logger.info(j)
-                    reS += (JSONObject(j).getJSONArray("results")[0] as JSONObject).getJSONObject("values")
-                        .getString("text") + "\n"
+                    val text = Gson().toJson(it.toRequest(uinfo))
+                    val j = sendJson(text, debug)
+
+                    val code = JSONObject(j).getJSONObject("intent").getInt("code")
+                    reS += if(overLimitReply.isNotEmpty() && code == 4003)
+                        overLimitReply.random()
+                    else
+                        (JSONObject(j).getJSONArray("results")[0] as JSONObject).getJSONObject("values")
+                            .getString("text")
                 }
             this.sender.sendMessage(reS.trim())
         }
