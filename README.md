@@ -9,7 +9,7 @@ Mirai接入图灵机器人
 1. 下载release中的插件文件
 2. 去[图灵个人中心](www.tuling123.com)取到api令牌
 ![image](https://user-images.githubusercontent.com/35139537/110485654-d78cc780-8126-11eb-890a-aa68f9a5f0d3.png)
-3. 把插件放到mcl里运行一次，插件会把配置文件目录通过日志发送出来(即在`data/TuLingBot/config.yml`或`data/tech.eritquearcus.tuling/config.yml`)，打开编辑这个文件
+3. 把插件放到mcl里运行一次，插件会把配置文件目录通过日志发送出来(即在`config/tech.eritquearcus.tuling/config.yml`)，打开编辑这个文件
 4. 按照以下格式输入
 ```yml
 # 图灵机器人Apikey
