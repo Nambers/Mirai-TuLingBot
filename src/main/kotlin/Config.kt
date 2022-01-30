@@ -17,13 +17,6 @@
  */
 package tech.eritquearcus.tuling
 
-data class Config(
-    val apikey: String,
-    val gkeyWord: List<String>,
-    val fkeyWord: List<String>,
-    val debug: Boolean?
-)
-
 data class TulingRequest(
     val perception: Perception,
     val reqType: Int,
