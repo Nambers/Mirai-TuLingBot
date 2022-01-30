@@ -18,25 +18,22 @@
 package tech.eritquearcus.tuling
 
 import com.google.gson.Gson
-import net.mamoe.mirai.Bot
 import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescription
 import net.mamoe.mirai.console.plugin.jvm.KotlinPlugin
 import net.mamoe.mirai.event.events.FriendMessageEvent
 import net.mamoe.mirai.event.events.GroupMessageEvent
 import net.mamoe.mirai.event.events.MessageEvent
 import net.mamoe.mirai.event.globalEventChannel
-import net.mamoe.mirai.message.data.*
-import net.mamoe.mirai.message.data.Image.Key.queryUrl
+import net.mamoe.mirai.message.data.At
+import net.mamoe.mirai.message.data.PlainText
+import net.mamoe.mirai.message.data.content
 import org.json.JSONObject
 import tech.eritquearcus.tuling.TuringConfig.apikey
 import tech.eritquearcus.tuling.TuringConfig.debug
 import tech.eritquearcus.tuling.TuringConfig.friendKeyword
 import tech.eritquearcus.tuling.TuringConfig.groupKeyword
 import tech.eritquearcus.tuling.TuringConfig.overLimitReply
-import java.io.InputStreamReader
-import java.net.HttpURLConnection
-import java.net.URL
-import java.nio.charset.StandardCharsets
+import java.io.File
 
 
 object PluginMain : KotlinPlugin(
@@ -44,53 +41,6 @@ object PluginMain : KotlinPlugin(
         id = "tech.eritquearcus.TuLingBot", name = "TuLingBot", version = "1.6.0"
     )
 ) {
-    private fun TulingRequest.Perception?.toRequest(uinfo: TulingRequest.UserInfo): TulingRequest? =
-        if (this == null) null
-        else TulingRequest(
-            this, when {
-                this.inputText != null -> 0
-                this.inputImage != null -> 1
-                this.inputMedia != null -> 2
-                else -> throw IllegalArgumentException("Unreachable")
-            }, uinfo
-        )
-
-    private suspend fun SingleMessage.toRequest(uinfo: TulingRequest.UserInfo): TulingRequest? = when (this) {
-        is PlainText -> TulingRequest.Perception(inputText = TulingRequest.Perception.InputText(this.content))
-        is Image -> TulingRequest.Perception(inputImage = TulingRequest.Perception.InputImage(this.queryUrl()))
-        is OnlineAudio -> TulingRequest.Perception(inputMedia = TulingRequest.Perception.InputMedia(this.urlForDownload))
-        else -> null
-    }.toRequest(uinfo)
-
-    private fun sendJson(out: String, debug: Boolean?): String {
-        val url = URL("https://openapi.tuling123.com/openapi/api/v2")
-        val con = url.openConnection()
-        val http = con as HttpURLConnection
-        http.requestMethod = "POST"
-        http.setRequestProperty("Content-Type", "application/json; utf-8")
-        http.setRequestProperty("Accept", "application/json")
-        http.doOutput = true
-        http.connect()
-        if (debug == true) logger.info("图灵发送:\n$out")
-        http.outputStream.use { os -> os.write(out.encodeToByteArray()) }
-        val re = InputStreamReader(http.inputStream, StandardCharsets.UTF_8).readText()
-        if (debug == true) logger.info("图灵返回:\n$re")
-        return re
-    }
-
-    private fun MessageChain.containKey(l: List<String>, bot: Bot): List<SingleMessage> {
-        l.forEach {
-            if (it == "@bot" && this.contains(At(bot))) return this.toMutableList().apply {
-                this.remove(At(bot))
-                this.removeAt(0)
-            }
-            else if (this.contentToString().startsWith(it)) return this.toMutableList().apply {
-                this.removeAt(0)
-                this[0] = PlainText(this[0].contentToString().replace(it, ""))
-            }
-        }
-        return emptyList()
-    }
 
     private suspend fun MessageEvent.getResult(keyWords: List<String>) {
         var reS = ""
@@ -98,7 +48,7 @@ object PluginMain : KotlinPlugin(
             apikey, null, this.sender.id.toString(), this.sender.nick
         )
         run out@{
-            (if (groupKeyword.isEmpty()) this.message.toList()
+            (if (keyWords.isEmpty()) this.message.toList()
             else this.message.containKey(keyWords, this.bot).let {
                 if (it.isEmpty()) return
                 else return@let it
@@ -124,7 +74,20 @@ object PluginMain : KotlinPlugin(
         this.subject.sendMessage((if (this is GroupMessageEvent) At(this.sender) else PlainText("")) + reS.trim())
     }
 
+    private fun move(file: File) {
+        val old = Gson().fromJson(file.readText(), Config::class.java)
+        apikey = old.apikey
+        groupKeyword = old.gkeyWord
+        friendKeyword = old.fkeyWord
+        debug = old.debug == true
+        file.delete()
+    }
+
     override fun onEnable() {
+        File(this.dataFolder.absoluteFile, "config.json").let {
+            if (it.exists())
+                move(it)
+        }
         TuringConfig.reload()
         if (apikey.isEmpty()) logger.warning("未填写apikey，请到${configFolder.absoluteFile.resolve("config.yml")}文件下填写")
         globalEventChannel().filter { apikey.isNotEmpty() }.subscribeAlways<GroupMessageEvent> {

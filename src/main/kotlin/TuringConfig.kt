@@ -23,16 +23,16 @@ import net.mamoe.mirai.console.data.value
 
 object TuringConfig:AutoSavePluginConfig("config") {
     @ValueDescription("图灵机器人Apikey")
-    val apikey:String by value()
+    var apikey: String by value()
 
     @ValueDescription("唤起关键词(群组)")
-    val groupKeyword:List<String> by value()
+    var groupKeyword: List<String> by value()
 
     @ValueDescription("唤起关键词(私聊)")
-    val friendKeyword:List<String> by value()
+    var friendKeyword: List<String> by value()
 
     @ValueDescription("是否输出debug信息")
-    val debug:Boolean by value(false)
+    var debug: Boolean by value(false)
 
     @ValueDescription("图灵服务不可用时的自定义回复")
     val overLimitReply:List<String> by value()
