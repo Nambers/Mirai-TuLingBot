@@ -15,18 +15,20 @@ Mirai接入图灵机器人
 {
 "apikey":"api令牌",
 "gkeyword":["群聊触发开始字符串1", "字符串2", "@bot"],
-"fkeyword": []
+"fkeyword": [],
+"overLimitReply": []
 }
 ```
 其中
 - `gkeyword` 代表在群聊中的触发字符, `@bot` 代表 @bot 的时候也触发
 - `fkeyword` 代表在私聊中的触发字符, 为空代表任意消息都会触发
-- [可选] `debug` 代表要不要接收内部日志, 如果为true代表会打印, false或不填代表不会
+- \[可选] `debug` 代表要不要接收内部日志, 如果为true代表会打印, false或不填代表不会
+- \[可选] `overLimitReply` 当图灵服务不可用(通常为4003请求次数超过限制)时随机回复其中一个
 5. 运行mcl
 
 # 许可
 ```
-Copyright (C) 2021-2021 Eritque arcus and contributors.
+Copyright (C) 2021-2022 Eritque arcus and contributors.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
