@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 - 2021. Eritque arcus and contributors.
+ * Copyright (c) 2020 - 2022. Eritque arcus and contributors.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -23,7 +23,7 @@ plugins {
 }
 
 group = "tech.eritquearcus"
-version = "1.5.0"
+version = "1.6.0"
 
 repositories {
     mavenLocal()
@@ -33,7 +33,7 @@ repositories {
 }
 dependencies {
     // https://mvnrepository.com/artifact/org.json/json
-    implementation("org.json:json:20210307")
+    implementation("org.json:json:20211205")
     implementation("com.google.code.gson:gson:2.8.9")
 
 }

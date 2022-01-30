@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2021 Eritque arcus and contributors.
+ * Copyright (C) 2021-2022 Eritque arcus and contributors.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -47,3 +47,23 @@ data class TulingRequest(
         val userIdName: String
     )
 }
+
+internal val errCode = mapOf(
+    "5000" to "无解析结果",
+    "6000" to "暂不支持该功能",
+    "4000" to "请求参数格式错误",
+    "4001" to "加密方式错误",
+    "4002" to "无功能权限",
+    "4003" to "该apikey没有可用请求次数",
+    "4005" to "无功能权限",
+    "4007" to "apikey不合法",
+    "4100" to "userid获取失败",
+    "4200" to "上传格式错误",
+    "4300" to "批量操作超过限制",
+    "4400" to "没有上传合法userid",
+    "4500" to "userid申请个数超过限制",
+    "4600" to "输入内容为空",
+    "4602" to "输入文本内容超长(上限150)",
+    "7002" to "上传信息失败",
+    "8008" to "服务器错误"
+)
