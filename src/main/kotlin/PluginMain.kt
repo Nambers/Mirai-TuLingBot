@@ -63,7 +63,7 @@ object PluginMain : KotlinPlugin(
     }.toRequest(uinfo)
 
     private fun sendJson(out: String, debug: Boolean?): String {
-        val url = URL("http://openapi.tuling123.com/openapi/api/v2")
+        val url = URL("https://openapi.tuling123.com/openapi/api/v2")
         val con = url.openConnection()
         val http = con as HttpURLConnection
         http.requestMethod = "POST"
@@ -112,12 +112,12 @@ object PluginMain : KotlinPlugin(
                 })
                 val j = sendJson(text, debug)
                 val code = JSONObject(j).getJSONObject("intent").getInt("code")
-                if (code != 0) {
-                    logger.error("图灵服务返回异常: code: $code, msg: ${errCode.getOrDefault(code.toString(), "未知异常")}")
+                if (code.toString() in errCode.keys) {
+                    logger.error("图灵服务返回异常: code: $code, msg: ${errCode[code.toString()]}")
                     reS = if (overLimitReply.isNotEmpty()) overLimitReply.random()
-                    else errCode.getOrDefault(code.toString(), "未知异常")
+                    else errCode[code.toString()]!!
                     return@out // equal to `break`
-                } else (JSONObject(j).getJSONArray("results")[0] as JSONObject).getJSONObject("values")
+                } else reS += (JSONObject(j).getJSONArray("results")[0] as JSONObject).getJSONObject("values")
                     .getString("text")
             }
         }
@@ -126,7 +126,7 @@ object PluginMain : KotlinPlugin(
 
     override fun onEnable() {
         TuringConfig.reload()
-        if (apikey.isEmpty()) logger.warning("未填写apikey，请到${configFolder.absolutePath}/config.yml文件下填写")
+        if (apikey.isEmpty()) logger.warning("未填写apikey，请到${configFolder.absoluteFile.resolve("config.yml")}文件下填写")
         globalEventChannel().filter { apikey.isNotEmpty() }.subscribeAlways<GroupMessageEvent> {
             this.getResult(groupKeyword)
         }
