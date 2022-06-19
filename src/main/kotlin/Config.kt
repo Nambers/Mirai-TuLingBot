@@ -17,13 +17,6 @@
  */
 package tech.eritquearcus.tuling
 
-internal data class Config(
-    val apikey: String,
-    val gkeyWord: List<String>,
-    val fkeyWord: List<String>,
-    val debug: Boolean?
-)
-
 internal data class TulingRequest(
     val perception: Perception,
     val reqType: Int,
@@ -54,6 +47,8 @@ internal data class TulingRequest(
         val userIdName: String
     )
 }
+
+internal val apikeyErr = listOf("4003", "4500")
 
 internal val errCode = mapOf(
     "5000" to "无解析结果",

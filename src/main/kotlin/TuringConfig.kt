@@ -23,7 +23,7 @@ import net.mamoe.mirai.console.data.value
 
 object TuringConfig:AutoSavePluginConfig("config") {
     @ValueDescription("图灵机器人Apikey")
-    var apikey: String by value()
+    var apikey: List<String> by value()
 
     @ValueDescription("唤起关键词(群组)")
     var groupKeyword: List<String> by value()
