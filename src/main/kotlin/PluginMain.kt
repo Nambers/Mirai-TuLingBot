@@ -27,7 +27,6 @@ import net.mamoe.mirai.event.globalEventChannel
 import net.mamoe.mirai.message.data.At
 import net.mamoe.mirai.message.data.PlainText
 import net.mamoe.mirai.message.data.SingleMessage
-import net.mamoe.mirai.message.data.content
 import org.json.JSONObject
 import tech.eritquearcus.tuling.TuringConfig.apikey
 import tech.eritquearcus.tuling.TuringConfig.debug
@@ -38,12 +37,12 @@ import tech.eritquearcus.tuling.TuringConfig.overLimitReply
 
 object PluginMain : KotlinPlugin(
     JvmPluginDescription(
-        id = "tech.eritquearcus.TuLingBot", name = "TuLingBot", version = "1.6.0"
+        id = "tech.eritquearcus.TuLingBot", name = "TuLingBot", version = "1.7.0"
     )
 ) {
 
     private suspend fun SingleMessage.getResult(uinfo: TulingRequest.UserInfo): Pair<String, Int> {
-        if (content.isBlank() || content.isEmpty()) return Pair("", 1)
+//        if (content.isBlank() || content.isEmpty()) return Pair("", 1)
         val text = Gson().toJson(toRequest(uinfo).apply {
             if (this == null) {
                 logger.warning("遇到不能处理的消息类型: ${javaClass.name}")
@@ -58,7 +57,7 @@ object PluginMain : KotlinPlugin(
                 return Pair("", 2) // change apikey
             }
             logger.error("图灵服务返回异常: code: $code, msg: ${errCode[code.toString()]}, apikey: ${uinfo.apiKey}")
-            val re = if (overLimitReply.isNotEmpty()) overLimitReply.random() else errCode[code.toString()]!!
+            val re = if (overLimitReply.isNotEmpty()) overLimitReply.random() else "Err: " + errCode[code.toString()]!!
             return Pair(re, 1) // equal to `break`
         } else {
             val re = (JSONObject(j).getJSONArray("results")[0] as JSONObject).getJSONObject("values").getString("text")
@@ -69,11 +68,13 @@ object PluginMain : KotlinPlugin(
     private suspend fun MessageEvent.getResult(keyWords: List<String>) {
         var reS = ""
         run out@{
-            (if (keyWords.isEmpty()) this.message.toList()
+            var msgs = (if (keyWords.isEmpty()) this.message.toList()
             else this.message.containKey(keyWords, this.bot).let {
-                if (it.isEmpty()) return
+                if (it == null) return
                 else return@let it
-            }).forEach foreach1@{ msg ->
+            })
+            if (msgs.isEmpty()) msgs = listOf(PlainText(""))
+            msgs.forEach foreach1@{ msg ->
                 var backup = ""
                 apikey.forEach { key ->
                     val uinfo = TulingRequest.UserInfo(

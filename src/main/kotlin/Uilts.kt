@@ -26,16 +26,15 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
 
-internal fun TulingRequest.Perception?.toRequest(uinfo: TulingRequest.UserInfo): TulingRequest? =
-    if (this == null) null
-    else TulingRequest(
-        this, when {
-            this.inputText != null -> 0
-            this.inputImage != null -> 1
-            this.inputMedia != null -> 2
-            else -> throw IllegalArgumentException("Unreachable")
-        }, uinfo
-    )
+internal fun TulingRequest.Perception?.toRequest(uinfo: TulingRequest.UserInfo): TulingRequest? = if (this == null) null
+else TulingRequest(
+    this, when {
+        this.inputText != null -> 0
+        this.inputImage != null -> 1
+        this.inputMedia != null -> 2
+        else -> throw IllegalArgumentException("Unreachable")
+    }, uinfo
+)
 
 internal suspend fun SingleMessage.toRequest(uinfo: TulingRequest.UserInfo): TulingRequest? = when (this) {
     is PlainText -> TulingRequest.Perception(inputText = TulingRequest.Perception.InputText(this.content))
@@ -60,7 +59,7 @@ internal fun sendJson(out: String, debug: Boolean?): String {
     return re
 }
 
-internal fun MessageChain.containKey(l: List<String>, bot: Bot): List<SingleMessage> {
+internal fun MessageChain.containKey(l: List<String>, bot: Bot): List<SingleMessage>? {
     l.forEach {
         if (it == "@bot" && this.contains(At(bot))) return this.toMutableList().apply {
             this.remove(At(bot))
@@ -71,5 +70,5 @@ internal fun MessageChain.containKey(l: List<String>, bot: Bot): List<SingleMess
             this[0] = PlainText(this[0].contentToString().replace(it, ""))
         }
     }
-    return emptyList()
+    return null
 }
