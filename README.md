@@ -13,7 +13,9 @@ Mirai接入图灵机器人
 4. 按照以下格式输入
 ```yml
 # 图灵机器人Apikey
-apikey: '***'
+apikey:
+  - key1
+  - key2
 # 唤起关键词(群组)
 groupKeyword:
   - @bot
